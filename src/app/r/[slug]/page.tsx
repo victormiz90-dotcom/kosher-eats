@@ -4,13 +4,16 @@ import { getRestaurantBySlug } from '@/lib/restaurants';
 import { getPlatformLabel } from '@/lib/deep-link';
 import type { DeliveryPlatform } from '@/types/database';
 
-// Brand icons (white) served from simpleicons CDN. Seamless is owned by
-// Grubhub and shares branding, so we reuse the grubhub icon.
+// Brand icons served from jsDelivr's simple-icons mirror (cdn.simpleicons.org
+// doesn't carry Grubhub or Seamless). These SVGs render in default black, so we
+// apply a Tailwind `invert` filter at the call site to turn them white for the
+// dark brand-700 button background. Seamless is owned by Grubhub and shares
+// branding, so we reuse the grubhub icon.
 const PLATFORM_ICON_URL: Partial<Record<DeliveryPlatform, string>> = {
-  ubereats: 'https://cdn.simpleicons.org/ubereats/white',
-  doordash: 'https://cdn.simpleicons.org/doordash/white',
-  grubhub:  'https://cdn.simpleicons.org/grubhub/white',
-  seamless: 'https://cdn.simpleicons.org/grubhub/white'
+  ubereats: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ubereats.svg',
+  doordash: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/doordash.svg',
+  grubhub:  'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/grubhub.svg',
+  seamless: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/grubhub.svg'
 };
 
 interface PageProps {
@@ -100,7 +103,7 @@ export default async function RestaurantPage({ params }: PageProps) {
                           alt=""
                           width={20}
                           height={20}
-                          className="h-5 w-5"
+                          className="h-5 w-5 invert"
                         />
                       )}
                       Order on {getPlatformLabel(link.platform)}
