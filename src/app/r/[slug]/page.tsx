@@ -4,16 +4,28 @@ import { getRestaurantBySlug } from '@/lib/restaurants';
 import { getPlatformLabel } from '@/lib/deep-link';
 import type { DeliveryPlatform } from '@/types/database';
 
-// Brand icons served from jsDelivr's simple-icons mirror (cdn.simpleicons.org
-// doesn't carry Grubhub or Seamless). These SVGs render in default black, so we
-// apply a Tailwind `invert` filter at the call site to turn them white for the
-// dark brand-700 button background. Seamless is owned by Grubhub and shares
-// branding, so we reuse the grubhub icon.
-const PLATFORM_ICON_URL: Partial<Record<DeliveryPlatform, string>> = {
-  ubereats: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ubereats.svg',
-  doordash: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/doordash.svg',
-  grubhub:  'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/grubhub.svg',
-  seamless: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/grubhub.svg'
+// Brand icons. UE + DD come from jsDelivr's simple-icons mirror (monochrome
+// SVGs that need inverting to render white on the dark button). Grubhub +
+// Seamless are vendored full-color brand logos in /public/icons/ so we
+// control hosting and they can't break from external CDN changes.
+type PlatformIcon = { url: string; invert: boolean };
+const PLATFORM_ICONS: Partial<Record<DeliveryPlatform, PlatformIcon>> = {
+  ubereats: {
+    url: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ubereats.svg',
+    invert: true
+  },
+  doordash: {
+    url: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/doordash.svg',
+    invert: true
+  },
+  grubhub: {
+    url: '/icons/grubhub.png',
+    invert: false
+  },
+  seamless: {
+    url: '/icons/seamless.jpg',
+    invert: false
+  }
 };
 
 interface PageProps {
@@ -87,7 +99,7 @@ export default async function RestaurantPage({ params }: PageProps) {
                 Order
               </h2>
               {restaurant.delivery_links.map((link) => {
-                const iconUrl = PLATFORM_ICON_URL[link.platform];
+                const icon = PLATFORM_ICONS[link.platform];
                 return (
                   <a
                     key={link.id}
@@ -96,14 +108,16 @@ export default async function RestaurantPage({ params }: PageProps) {
                     className="flex w-full items-center justify-between rounded-lg bg-brand-700 px-4 py-3 text-white transition hover:bg-brand-900"
                   >
                     <span className="flex items-center gap-3 font-medium">
-                      {iconUrl && (
+                      {icon && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={iconUrl}
+                          src={icon.url}
                           alt=""
-                          width={20}
-                          height={20}
-                          className="h-5 w-5 invert"
+                          width={24}
+                          height={24}
+                          className={`h-6 w-6 rounded object-contain ${
+                            icon.invert ? 'invert' : 'bg-white p-0.5'
+                          }`}
                         />
                       )}
                       Order on {getPlatformLabel(link.platform)}
