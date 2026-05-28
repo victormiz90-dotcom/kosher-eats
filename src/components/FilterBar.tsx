@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { CertOption } from '@/lib/restaurants';
 
@@ -22,6 +23,27 @@ export function FilterBar({ certOptions }: { certOptions: CertOption[] }) {
   const currentRadius = sp.get('radius') ?? '10';
   const currentCert = sp.get('cert') ?? '';
   const currentCat = sp.get('cat') ?? '';
+  const currentQ = sp.get('q') ?? '';
+
+  // Local state for the search input so each keystroke doesn't trigger a
+  // server round-trip; debounced into the URL ~300ms after the user stops typing.
+  const [searchInput, setSearchInput] = useState(currentQ);
+
+  useEffect(() => {
+    setSearchInput(currentQ);
+  }, [currentQ]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      if (searchInput !== currentQ) {
+        updateParam('q', searchInput);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+    // We intentionally don't include `currentQ` in deps — it's the read of the
+    // URL state we're trying to write to. Only re-debounce when the user types.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -38,6 +60,37 @@ export function FilterBar({ certOptions }: { certOptions: CertOption[] }) {
 
   return (
     <div className="mt-4 space-y-3">
+      {/* Name search */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          updateParam('q', searchInput);
+        }}
+        className="relative"
+      >
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by restaurant name…"
+          className="w-full rounded-lg border border-brand-100 bg-white py-2 pl-9 pr-3 text-sm text-brand-900 placeholder:text-brand-500 focus:border-brand-500 focus:outline-none"
+          aria-label="Search by restaurant name"
+        />
+        <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500">
+          🔍
+        </span>
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => setSearchInput('')}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-brand-500 hover:text-brand-900"
+          >
+            ✕
+          </button>
+        )}
+      </form>
+
       {/* Category chips */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-brand-700">
@@ -95,14 +148,16 @@ export function FilterBar({ certOptions }: { certOptions: CertOption[] }) {
           </select>
         </label>
 
-        {(currentCat || currentCert || currentRadius !== '10') && (
+        {(currentCat || currentCert || currentRadius !== '10' || currentQ) && (
           <button
             type="button"
             onClick={() => {
+              setSearchInput('');
               const params = new URLSearchParams(sp.toString());
               params.delete('cat');
               params.delete('cert');
               params.delete('radius');
+              params.delete('q');
               params.delete('page');
               router.push(`${pathname}?${params.toString()}`);
             }}

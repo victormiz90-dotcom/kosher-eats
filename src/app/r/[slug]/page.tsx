@@ -96,7 +96,8 @@ export default async function RestaurantPage({ params }: PageProps) {
                   <a
                     key={link.id}
                     href={`/api/click?link=${link.id}`}
-                    rel="nofollow noopener"
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
                     className="flex w-full items-center justify-between rounded-lg bg-brand-700 px-4 py-3 text-white transition hover:bg-brand-900"
                   >
                     <span className="flex items-center gap-3 font-medium">

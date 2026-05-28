@@ -1,4 +1,10 @@
-import { findRestaurantsNear, findNearestZip, geocodeZip, getCertOptions } from '@/lib/restaurants';
+import {
+  findRestaurantsNear,
+  findNearestZip,
+  geocodeZip,
+  getCertOptions,
+  searchRestaurantsByName
+} from '@/lib/restaurants';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { ZipSearchForm } from '@/components/ZipSearchForm';
 import { FilterBar } from '@/components/FilterBar';
@@ -14,6 +20,7 @@ interface PageProps {
     cert?: string;
     radius?: string;
     page?: string;
+    q?: string;
   };
 }
 
@@ -53,17 +60,24 @@ export default async function HomePage({ searchParams }: PageProps) {
     ? (searchParams.cat as 'meat' | 'dairy' | 'pareve' | 'mixed')
     : undefined;
   const certSlug = searchParams.cert && searchParams.cert.length > 0 ? searchParams.cert : undefined;
+  const nameQuery = (searchParams.q ?? '').trim();
 
+  const filterArgs = {
+    cholovYisroelOnly: searchParams.cy === '1',
+    pasYisroelOnly: searchParams.py === '1',
+    category,
+    certSlugs: certSlug ? [certSlug] : undefined
+  };
+
+  // When the user is searching by name, bypass the radius/PostGIS query and
+  // search the full directory — they're hunting for a specific spot, location
+  // shouldn't gate the result.
   const [allRestaurants, certOptions] = await Promise.all([
-    coords
-      ? findRestaurantsNear(coords.lat, coords.lng, {
-          cholovYisroelOnly: searchParams.cy === '1',
-          pasYisroelOnly: searchParams.py === '1',
-          category,
-          certSlugs: certSlug ? [certSlug] : undefined,
-          maxDistanceMiles: radius
-        })
-      : Promise.resolve([]),
+    nameQuery
+      ? searchRestaurantsByName(nameQuery, filterArgs)
+      : coords
+        ? findRestaurantsNear(coords.lat, coords.lng, { ...filterArgs, maxDistanceMiles: radius })
+        : Promise.resolve([]),
     getCertOptions()
   ]);
 
@@ -101,7 +115,8 @@ export default async function HomePage({ searchParams }: PageProps) {
 
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-brand-700">
-          {totalCount} restaurant{totalCount === 1 ? '' : 's'} {locationLabel}
+          {totalCount} restaurant{totalCount === 1 ? '' : 's'}{' '}
+          {nameQuery ? `matching "${nameQuery}"` : locationLabel}
           {totalPages > 1 && (
             <span className="ml-2 normal-case text-brand-500">
               · page {currentPage} of {totalPages}

@@ -68,6 +68,64 @@ export async function findRestaurantsNear(
 }
 
 /**
+ * Search active verified restaurants by name (case-insensitive substring).
+ * Used when the user types into the search bar — bypasses the radius/PostGIS
+ * search so they can find restaurants anywhere in the directory, not just
+ * within their current location radius.
+ *
+ * Applies the same secondary filters (CY/PY/category/cert) as the radius search.
+ */
+export async function searchRestaurantsByName(
+  q: string,
+  filters: SearchFilters = {}
+): Promise<RestaurantNearResult[]> {
+  const supabase = createClient();
+  const term = q.trim();
+  if (!term) return [];
+
+  // Escape % and _ in the search term so they're treated as literals, not wildcards.
+  const escaped = term.replace(/[%_\\]/g, (m) => '\\' + m);
+
+  let query = supabase
+    .from('restaurants')
+    .select(
+      'id, name, slug, address, city, zip, category, cholov_yisroel, pas_yisroel, hero_image_url'
+    )
+    .eq('active', true)
+    .eq('verification_status', 'verified')
+    .ilike('name', `%${escaped}%`)
+    .order('name', { ascending: true })
+    .limit(200);
+
+  if (filters.cholovYisroelOnly) query = query.eq('cholov_yisroel', true);
+  if (filters.pasYisroelOnly) query = query.eq('pas_yisroel', true);
+  if (filters.category) query = query.eq('category', filters.category);
+
+  const { data, error } = await query;
+  if (error || !data) {
+    console.error('searchRestaurantsByName failed:', error);
+    return [];
+  }
+
+  let results = data.map((r: any) => ({
+    ...r,
+    distance_miles: 0
+  })) as RestaurantNearResult[];
+
+  // Cert filter via secondary query (same pattern as findRestaurantsNear)
+  if (filters.certSlugs && filters.certSlugs.length > 0) {
+    const { data: certRows } = await supabase
+      .from('restaurant_certifications')
+      .select('restaurant_id, certification:certifications!inner(agency_slug)')
+      .in('certification.agency_slug', filters.certSlugs);
+    const matchingIds = new Set((certRows ?? []).map((r: any) => r.restaurant_id));
+    results = results.filter((r) => matchingIds.has(r.id));
+  }
+
+  return results;
+}
+
+/**
  * Return all active certification agencies for use in the kashrus filter dropdown.
  * Ordered by name. Skips internal "Local Rabbi Supervision" catch-all from the dropdown
  * since it's not a real agency users would filter by.
