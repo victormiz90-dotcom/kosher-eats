@@ -4,55 +4,16 @@ import { getRestaurantBySlug } from '@/lib/restaurants';
 import { getPlatformLabel } from '@/lib/deep-link';
 import type { DeliveryPlatform } from '@/types/database';
 
-// Brand icons. UE + DD come from jsDelivr's simple-icons mirror (monochrome
-// SVGs that need inverting to render white on the dark button). Grubhub +
-// Seamless are vendored full-color brand logos in /public/icons/ so we
-// control hosting and they can't break from external CDN changes.
-type PlatformIcon = { url: string; invert: boolean };
-const PLATFORM_ICONS: Partial<Record<DeliveryPlatform, PlatformIcon>> = {
-  ubereats: {
-    url: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ubereats.svg',
-    invert: true
-  },
-  doordash: {
-    url: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/doordash.svg',
-    invert: true
-  },
-  grubhub: {
-    url: '/icons/grubhub.png',
-    invert: false
-  },
-  seamless: {
-    url: '/icons/seamless.jpg',
-    invert: false
-  }
+// Brand icons. All four platforms use monochrome SVGs vendored locally from
+// the simple-icons project, rendered white via Tailwind's `invert` filter so
+// they read cleanly on the dark brand-700 button. Seamless is owned by
+// Grubhub and shares branding, so it reuses the grubhub icon.
+const PLATFORM_ICON_URL: Partial<Record<DeliveryPlatform, string>> = {
+  ubereats: '/icons/ubereats.svg',
+  doordash: '/icons/doordash.svg',
+  grubhub:  '/icons/grubhub.svg',
+  seamless: '/icons/grubhub.svg'
 };
-
-// The four delivery platforms we surface on every restaurant. Order matters —
-// this is the visual order shown in the Order section.
-const ALL_PLATFORMS: DeliveryPlatform[] = ['ubereats', 'doordash', 'grubhub', 'seamless'];
-
-/**
- * Generate a search URL on the given platform for a restaurant we don't have
- * a direct delivery_links row for. The user lands on that platform's search
- * results pre-filtered by name + zip — one extra click vs a direct link, but
- * the button always works, even for restaurants we haven't manually crawled.
- */
-function searchFallbackUrl(platform: DeliveryPlatform, name: string, zip: string): string {
-  const q = encodeURIComponent(`${name} ${zip}`.trim());
-  switch (platform) {
-    case 'ubereats':
-      return `https://www.ubereats.com/search?q=${q}`;
-    case 'doordash':
-      return `https://www.doordash.com/search/store/${q}`;
-    case 'grubhub':
-      return `https://www.grubhub.com/search?searchTerm=${q}`;
-    case 'seamless':
-      return `https://www.seamless.com/search?searchTerm=${q}`;
-    default:
-      return '';
-  }
-}
 
 interface PageProps {
   params: { slug: string };
@@ -118,55 +79,45 @@ export default async function RestaurantPage({ params }: PageProps) {
             <p className="mt-6 text-sm leading-relaxed text-brand-900">{restaurant.description}</p>
           )}
 
-          {/* Order buttons — always render all four platforms. If we have a
-              direct delivery_links row, link through /api/click (logged +
-              affiliate-wrapped) labeled "Order on X". Otherwise, send the
-              user to the platform's search page pre-filled with the
-              restaurant name + zip, labeled "Find on X" so they know it's
-              one extra click instead of a direct link. */}
-          <section className="mt-6 space-y-2">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
-              Order
-            </h2>
-            {ALL_PLATFORMS.map((platform) => {
-              const direct = restaurant.delivery_links.find((l) => l.platform === platform);
-              const icon = PLATFORM_ICONS[platform];
-              const href = direct
-                ? `/api/click?link=${direct.id}`
-                : searchFallbackUrl(platform, restaurant.name, restaurant.zip);
-              const verb = direct ? 'Order on' : 'Find on';
-              return (
-                <a
-                  key={platform}
-                  href={href}
-                  rel="nofollow noopener"
-                  target={direct ? undefined : '_blank'}
-                  className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-white transition ${
-                    direct
-                      ? 'bg-brand-700 hover:bg-brand-900'
-                      : 'bg-brand-700/70 hover:bg-brand-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-3 font-medium">
-                    {icon && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={icon.url}
-                        alt=""
-                        width={24}
-                        height={24}
-                        className={`h-6 w-6 rounded object-contain ${
-                          icon.invert ? 'invert' : 'bg-white p-0.5'
-                        }`}
-                      />
-                    )}
-                    {verb} {getPlatformLabel(platform)}
-                  </span>
-                  <span aria-hidden>→</span>
-                </a>
-              );
-            })}
-          </section>
+          {/* Order buttons — only render for restaurants that have direct
+              delivery_links rows in the DB. We deliberately do NOT generate
+              fallback search links: surfacing search-redirect buttons on
+              restaurants we haven't crawled is misleading UX. Restaurants
+              without delivery links get no Order section until we crawl
+              them properly. */}
+          {restaurant.delivery_links.length > 0 && (
+            <section className="mt-6 space-y-2">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                Order
+              </h2>
+              {restaurant.delivery_links.map((link) => {
+                const iconUrl = PLATFORM_ICON_URL[link.platform];
+                return (
+                  <a
+                    key={link.id}
+                    href={`/api/click?link=${link.id}`}
+                    rel="nofollow noopener"
+                    className="flex w-full items-center justify-between rounded-lg bg-brand-700 px-4 py-3 text-white transition hover:bg-brand-900"
+                  >
+                    <span className="flex items-center gap-3 font-medium">
+                      {iconUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={iconUrl}
+                          alt=""
+                          width={20}
+                          height={20}
+                          className="h-5 w-5 invert"
+                        />
+                      )}
+                      Order on {getPlatformLabel(link.platform)}
+                    </span>
+                    <span aria-hidden>→</span>
+                  </a>
+                );
+              })}
+            </section>
+          )}
 
           {restaurant.phone && (
             <a
