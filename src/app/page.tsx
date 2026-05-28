@@ -1,12 +1,25 @@
-import { findRestaurantsNear, findNearestZip, geocodeZip } from '@/lib/restaurants';
+import { findRestaurantsNear, findNearestZip, geocodeZip, getCertOptions } from '@/lib/restaurants';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { ZipSearchForm } from '@/components/ZipSearchForm';
+import { FilterBar } from '@/components/FilterBar';
 
 interface PageProps {
-  searchParams: { zip?: string; lat?: string; lng?: string; cy?: string; py?: string; page?: string };
+  searchParams: {
+    zip?: string;
+    lat?: string;
+    lng?: string;
+    cy?: string;
+    py?: string;
+    cat?: string;
+    cert?: string;
+    radius?: string;
+    page?: string;
+  };
 }
 
 const PAGE_SIZE = 25;
+const VALID_RADII = new Set([5, 10, 20, 50]);
+const VALID_CATEGORIES = new Set(['meat', 'dairy', 'pareve', 'mixed']);
 
 export default async function HomePage({ searchParams }: PageProps) {
   const defaultZip = process.env.NEXT_PUBLIC_DEFAULT_ZIP ?? '11230';
@@ -33,13 +46,26 @@ export default async function HomePage({ searchParams }: PageProps) {
     coords = await geocodeZip(zip);
   }
 
-  const allRestaurants = coords
-    ? await findRestaurantsNear(coords.lat, coords.lng, {
-        cholovYisroelOnly: searchParams.cy === '1',
-        pasYisroelOnly: searchParams.py === '1',
-        maxDistanceMiles: 10
-      })
-    : [];
+  // Parse filter URL params (whitelist values so the UI stays honest)
+  const parsedRadius = parseInt(searchParams.radius ?? '10', 10);
+  const radius = VALID_RADII.has(parsedRadius) ? parsedRadius : 10;
+  const category = VALID_CATEGORIES.has(searchParams.cat ?? '')
+    ? (searchParams.cat as 'meat' | 'dairy' | 'pareve' | 'mixed')
+    : undefined;
+  const certSlug = searchParams.cert && searchParams.cert.length > 0 ? searchParams.cert : undefined;
+
+  const [allRestaurants, certOptions] = await Promise.all([
+    coords
+      ? findRestaurantsNear(coords.lat, coords.lng, {
+          cholovYisroelOnly: searchParams.cy === '1',
+          pasYisroelOnly: searchParams.py === '1',
+          category,
+          certSlugs: certSlug ? [certSlug] : undefined,
+          maxDistanceMiles: radius
+        })
+      : Promise.resolve([]),
+    getCertOptions()
+  ]);
 
   // Pagination
   const totalCount = allRestaurants.length;
@@ -66,7 +92,9 @@ export default async function HomePage({ searchParams }: PageProps) {
         </p>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <FilterBar certOptions={certOptions} />
+
+      <div className="mt-3 flex flex-wrap gap-2">
         <FilterChip label="Cholov Yisroel" param="cy" active={searchParams.cy === '1'} searchParams={searchParams} />
         <FilterChip label="Pas Yisroel" param="py" active={searchParams.py === '1'} searchParams={searchParams} />
       </div>

@@ -5,10 +5,16 @@ export interface SearchFilters {
   cholovYisroelOnly?: boolean;
   pasYisroelOnly?: boolean;
   shomerShabbosOnly?: boolean;
-  category?: 'meat' | 'dairy' | 'pareve';
+  category?: 'meat' | 'dairy' | 'pareve' | 'mixed';
   cuisine?: string;
-  certificationIds?: string[];
+  certSlugs?: string[];
   maxDistanceMiles?: number;
+}
+
+export interface CertOption {
+  slug: string;
+  name: string;
+  short_name: string | null;
 }
 
 /**
@@ -47,7 +53,38 @@ export async function findRestaurantsNear(
     results = results.filter((r) => r.category === filters.category);
   }
 
+  // Cert filter: pull restaurant_ids that have any of the requested cert slugs,
+  // then intersect with the radius result.
+  if (filters.certSlugs && filters.certSlugs.length > 0) {
+    const { data: certRows } = await supabase
+      .from('restaurant_certifications')
+      .select('restaurant_id, certification:certifications!inner(agency_slug)')
+      .in('certification.agency_slug', filters.certSlugs);
+    const matchingIds = new Set((certRows ?? []).map((r: any) => r.restaurant_id));
+    results = results.filter((r) => matchingIds.has(r.id));
+  }
+
   return results;
+}
+
+/**
+ * Return all active certification agencies for use in the kashrus filter dropdown.
+ * Ordered by name. Skips internal "Local Rabbi Supervision" catch-all from the dropdown
+ * since it's not a real agency users would filter by.
+ */
+export async function getCertOptions(): Promise<CertOption[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('certifications')
+    .select('agency_slug, agency_name, agency_short_name')
+    .neq('agency_slug', 'local-rabbi')
+    .order('agency_name', { ascending: true });
+  if (error || !data) return [];
+  return data.map((c: any) => ({
+    slug: c.agency_slug,
+    name: c.agency_name,
+    short_name: c.agency_short_name
+  }));
 }
 
 /**
