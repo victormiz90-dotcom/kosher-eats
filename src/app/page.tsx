@@ -1,28 +1,53 @@
-import { findRestaurantsNear, geocodeZip } from '@/lib/restaurants';
+import { findRestaurantsNear, findNearestZip, geocodeZip } from '@/lib/restaurants';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { ZipSearchForm } from '@/components/ZipSearchForm';
 
 interface PageProps {
-  searchParams: { zip?: string; lat?: string; lng?: string; cy?: string; py?: string };
+  searchParams: { zip?: string; lat?: string; lng?: string; cy?: string; py?: string; page?: string };
 }
 
+const PAGE_SIZE = 25;
+
 export default async function HomePage({ searchParams }: PageProps) {
-  const zip = searchParams.zip ?? process.env.NEXT_PUBLIC_DEFAULT_ZIP ?? '11230';
+  const defaultZip = process.env.NEXT_PUBLIC_DEFAULT_ZIP ?? '11230';
 
   let coords: { lat: number; lng: number } | null = null;
+  let zip = searchParams.zip ?? defaultZip;
+  let locationLabel = `near ${zip}`;
+  let usingGeolocation = false;
+
   if (searchParams.lat && searchParams.lng) {
+    // User hit "use my location" — derive nearest known zip for honest UX.
     coords = { lat: parseFloat(searchParams.lat), lng: parseFloat(searchParams.lng) };
+    usingGeolocation = true;
+    const nearest = findNearestZip(coords.lat, coords.lng);
+    if (nearest) {
+      zip = nearest.zip;
+      locationLabel = `near you (${nearest.city} ${nearest.zip})`;
+    } else {
+      // Outside our coverage map; don't pretend a zip we don't know
+      zip = '';
+      locationLabel = 'near your location';
+    }
   } else {
     coords = await geocodeZip(zip);
   }
 
-  const restaurants = coords
+  const allRestaurants = coords
     ? await findRestaurantsNear(coords.lat, coords.lng, {
         cholovYisroelOnly: searchParams.cy === '1',
         pasYisroelOnly: searchParams.py === '1',
         maxDistanceMiles: 10
       })
     : [];
+
+  // Pagination
+  const totalCount = allRestaurants.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const requestedPage = parseInt(searchParams.page ?? '1', 10);
+  const currentPage = Math.min(Math.max(1, isNaN(requestedPage) ? 1 : requestedPage), totalPages);
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const restaurants = allRestaurants.slice(startIdx, startIdx + PAGE_SIZE);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
@@ -35,6 +60,12 @@ export default async function HomePage({ searchParams }: PageProps) {
 
       <ZipSearchForm defaultZip={zip} />
 
+      {usingGeolocation && (
+        <p className="mt-2 text-xs text-brand-700">
+          📍 Showing results {locationLabel}.
+        </p>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2">
         <FilterChip label="Cholov Yisroel" param="cy" active={searchParams.cy === '1'} searchParams={searchParams} />
         <FilterChip label="Pas Yisroel" param="py" active={searchParams.py === '1'} searchParams={searchParams} />
@@ -42,7 +73,12 @@ export default async function HomePage({ searchParams }: PageProps) {
 
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-brand-700">
-          {restaurants.length} restaurant{restaurants.length === 1 ? '' : 's'} near {zip}
+          {totalCount} restaurant{totalCount === 1 ? '' : 's'} {locationLabel}
+          {totalPages > 1 && (
+            <span className="ml-2 normal-case text-brand-500">
+              · page {currentPage} of {totalPages}
+            </span>
+          )}
         </h2>
 
         {!coords && (
@@ -64,6 +100,14 @@ export default async function HomePage({ searchParams }: PageProps) {
           <p className="rounded-lg bg-white p-6 text-center text-sm text-brand-700 shadow-sm">
             No verified restaurants in this area yet. We&apos;re actively expanding — check back soon.
           </p>
+        )}
+
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            searchParams={searchParams}
+          />
         )}
       </section>
 
@@ -92,6 +136,8 @@ function FilterChip({
   Object.entries(searchParams).forEach(([k, v]) => {
     if (v) next.set(k, v);
   });
+  // Filter changes reset paging to 1
+  next.delete('page');
   if (active) {
     next.delete(param);
   } else {
@@ -109,5 +155,96 @@ function FilterChip({
     >
       {label}
     </a>
+  );
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  searchParams
+}: {
+  currentPage: number;
+  totalPages: number;
+  searchParams: Record<string, string | undefined>;
+}) {
+  function urlForPage(p: number) {
+    const next = new URLSearchParams();
+    Object.entries(searchParams).forEach(([k, v]) => {
+      if (v && k !== 'page') next.set(k, v);
+    });
+    if (p > 1) next.set('page', String(p));
+    return `/?${next.toString()}`;
+  }
+
+  const prevDisabled = currentPage <= 1;
+  const nextDisabled = currentPage >= totalPages;
+
+  // Build a compact page-number window: 1, ..., curr-1, curr, curr+1, ..., total
+  const pages: (number | 'ellipsis')[] = [];
+  const window = 1;
+  const add = (n: number) => {
+    if (!pages.includes(n) && n >= 1 && n <= totalPages) pages.push(n);
+  };
+  add(1);
+  if (currentPage - window > 2) pages.push('ellipsis');
+  for (let i = currentPage - window; i <= currentPage + window; i++) add(i);
+  if (currentPage + window < totalPages - 1) pages.push('ellipsis');
+  add(totalPages);
+
+  return (
+    <nav
+      aria-label="Pagination"
+      className="mt-6 flex items-center justify-center gap-2 text-sm"
+    >
+      {prevDisabled ? (
+        <span className="cursor-not-allowed rounded-md border border-brand-100 bg-white px-3 py-2 text-brand-500">
+          ← Prev
+        </span>
+      ) : (
+        <a
+          href={urlForPage(currentPage - 1)}
+          className="rounded-md border border-brand-100 bg-white px-3 py-2 text-brand-700 hover:border-brand-500"
+        >
+          ← Prev
+        </a>
+      )}
+
+      {pages.map((p, idx) =>
+        p === 'ellipsis' ? (
+          <span key={`e-${idx}`} className="px-2 text-brand-500">
+            …
+          </span>
+        ) : p === currentPage ? (
+          <span
+            key={p}
+            aria-current="page"
+            className="rounded-md bg-brand-700 px-3 py-2 font-medium text-white"
+          >
+            {p}
+          </span>
+        ) : (
+          <a
+            key={p}
+            href={urlForPage(p)}
+            className="rounded-md border border-brand-100 bg-white px-3 py-2 text-brand-700 hover:border-brand-500"
+          >
+            {p}
+          </a>
+        )
+      )}
+
+      {nextDisabled ? (
+        <span className="cursor-not-allowed rounded-md border border-brand-100 bg-white px-3 py-2 text-brand-500">
+          Next →
+        </span>
+      ) : (
+        <a
+          href={urlForPage(currentPage + 1)}
+          className="rounded-md border border-brand-100 bg-white px-3 py-2 text-brand-700 hover:border-brand-500"
+        >
+          Next →
+        </a>
+      )}
+    </nav>
   );
 }

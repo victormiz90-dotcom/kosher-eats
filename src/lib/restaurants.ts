@@ -122,3 +122,37 @@ export async function geocodeZip(zip: string): Promise<{ lat: number; lng: numbe
   // TODO: call Google Geocoding API for unknown zips and cache the result
   return null;
 }
+
+/**
+ * Reverse-geocode lat/lng to the nearest known zip in our fallback table.
+ * Used when a user hits "📍 use my location" so the UI can honestly show
+ * "X restaurants near 11230" instead of lying about the default zip.
+ *
+ * Returns null if no known zip is within `maxMiles` of the given point —
+ * caller should fall back to a generic "your location" label in that case.
+ */
+export function findNearestZip(
+  lat: number,
+  lng: number,
+  maxMiles = 15
+): { zip: string; city: string; distanceMiles: number } | null {
+  let best: { zip: string; city: string; distanceMiles: number } | null = null;
+  for (const [zip, { lat: zLat, lng: zLng, city }] of Object.entries(ZIP_FALLBACK)) {
+    const miles = haversineMiles(lat, lng, zLat, zLng);
+    if (miles <= maxMiles && (!best || miles < best.distanceMiles)) {
+      best = { zip, city, distanceMiles: miles };
+    }
+  }
+  return best;
+}
+
+function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8; // earth radius in miles
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

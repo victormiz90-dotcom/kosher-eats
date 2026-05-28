@@ -2,6 +2,16 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getRestaurantBySlug } from '@/lib/restaurants';
 import { getPlatformLabel } from '@/lib/deep-link';
+import type { DeliveryPlatform } from '@/types/database';
+
+// Brand icons (white) served from simpleicons CDN. Seamless is owned by
+// Grubhub and shares branding, so we reuse the grubhub icon.
+const PLATFORM_ICON_URL: Partial<Record<DeliveryPlatform, string>> = {
+  ubereats: 'https://cdn.simpleicons.org/ubereats/white',
+  doordash: 'https://cdn.simpleicons.org/doordash/white',
+  grubhub:  'https://cdn.simpleicons.org/grubhub/white',
+  seamless: 'https://cdn.simpleicons.org/grubhub/white'
+};
 
 interface PageProps {
   params: { slug: string };
@@ -73,17 +83,32 @@ export default async function RestaurantPage({ params }: PageProps) {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
                 Order
               </h2>
-              {restaurant.delivery_links.map((link) => (
-                <a
-                  key={link.id}
-                  href={`/api/click?link=${link.id}`}
-                  rel="nofollow noopener"
-                  className="flex w-full items-center justify-between rounded-lg bg-brand-700 px-4 py-3 text-white transition hover:bg-brand-900"
-                >
-                  <span className="font-medium">Order on {getPlatformLabel(link.platform)}</span>
-                  <span aria-hidden>→</span>
-                </a>
-              ))}
+              {restaurant.delivery_links.map((link) => {
+                const iconUrl = PLATFORM_ICON_URL[link.platform];
+                return (
+                  <a
+                    key={link.id}
+                    href={`/api/click?link=${link.id}`}
+                    rel="nofollow noopener"
+                    className="flex w-full items-center justify-between rounded-lg bg-brand-700 px-4 py-3 text-white transition hover:bg-brand-900"
+                  >
+                    <span className="flex items-center gap-3 font-medium">
+                      {iconUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={iconUrl}
+                          alt=""
+                          width={20}
+                          height={20}
+                          className="h-5 w-5"
+                        />
+                      )}
+                      Order on {getPlatformLabel(link.platform)}
+                    </span>
+                    <span aria-hidden>→</span>
+                  </a>
+                );
+              })}
             </section>
           )}
 
