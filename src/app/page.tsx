@@ -114,8 +114,8 @@ export default async function HomePage({ searchParams }: PageProps) {
   const favoritedIds = await getFavoritedIds();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
-      <section className="mb-6">
+    <main className="mx-auto max-w-5xl px-4 py-6">
+      <section className="mb-8 max-w-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-500">
           Hand-verified kosher dining
         </p>
@@ -166,7 +166,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <ul className="space-y-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {restaurants.map((r) => (
             <li key={r.id}>
               <RestaurantCard

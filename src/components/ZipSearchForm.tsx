@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LocateFixed, Search } from 'lucide-react';
 
 export function ZipSearchForm({
@@ -23,36 +23,21 @@ export function ZipSearchForm({
     setZip(defaultZip);
   }, [defaultZip]);
 
-  // Auto-locate returning visitors: only when there's no explicit location AND
-  // the browser has already granted permission, so first-timers never get a
-  // surprise prompt — they see the default zip until they tap the button.
+  // Ask for location on first load when no explicit location is set, so the
+  // default isn't a stale hardcoded zip. Browsers remember a denial and won't
+  // nag; we attempt once per mount, and after it resolves the URL carries
+  // lat/lng (hasExplicitLocation = true) so this won't re-fire.
+  const triedAuto = useRef(false);
   useEffect(() => {
-    if (hasExplicitLocation || !navigator.geolocation) return;
-    if (!navigator.permissions?.query) return;
-
-    let cancelled = false;
-    navigator.permissions
-      .query({ name: 'geolocation' as PermissionName })
-      .then((status) => {
-        if (cancelled || status.state !== 'granted') return;
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (!cancelled) {
-              router.replace(`/?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
-            }
-          },
-          () => {
-            /* already-granted permission failing is rare; stay on default */
-          }
-        );
-      })
-      .catch(() => {
-        /* Permissions API unsupported — ignore, button still works */
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    if (hasExplicitLocation || triedAuto.current || !navigator.geolocation) return;
+    triedAuto.current = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => router.replace(`/?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`),
+      () => {
+        /* denied or unavailable — fall back to the default zip silently */
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 }
+    );
   }, [hasExplicitLocation, router]);
 
   function handleSubmit(e: React.FormEvent) {

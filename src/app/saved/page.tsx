@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { attachPrimaryCertifications } from '@/lib/restaurants';
+import { attachCardData } from '@/lib/restaurants';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import type { RestaurantNearResult } from '@/types/database';
 
@@ -32,7 +32,7 @@ export default async function SavedPage() {
     })
     .filter((r: RestaurantNearResult | null): r is RestaurantNearResult => r !== null);
 
-  const cards = await attachPrimaryCertifications(saved);
+  const cards = await attachCardData(saved);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">

@@ -101,9 +101,11 @@ export interface RestaurantNearResult {
   pas_yisroel: boolean;
   hero_image_url: string | null;
   distance_miles: number;
-  // Primary (most stringent) hechsher, attached after the geo/name query so
-  // every card can show who certifies the restaurant.
+  // Attached after the geo/name query so each card can show who certifies the
+  // restaurant, whether it's a paid feature, and its order links.
   primary_cert?: { short: string | null; name: string } | null;
+  featured?: boolean;
+  order_links?: { id: string; platform: DeliveryPlatform }[];
 }
 
 // Composite type used in the detail page

@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
-import type { RestaurantNearResult, RestaurantWithDetails } from '@/types/database';
+import type {
+  RestaurantNearResult,
+  RestaurantWithDetails,
+  DeliveryPlatform
+} from '@/types/database';
 
 export interface SearchFilters {
   cholovYisroelOnly?: boolean;
@@ -17,34 +21,51 @@ export interface CertOption {
   short_name: string | null;
 }
 
+const PLATFORM_ORDER: DeliveryPlatform[] = [
+  'ubereats',
+  'doordash',
+  'grubhub',
+  'seamless',
+  'caviar',
+  'direct',
+  'other'
+];
+
 /**
- * Attach the primary (most stringent) hechsher to each result so cards can show
- * who certifies the restaurant. One batched query for all result IDs, then we
- * pick the highest stringency_level per restaurant. Exported so other pages
- * (e.g. /saved) can reuse it.
+ * Enrich list results with everything a card needs: the primary (most stringent)
+ * hechsher, the `featured` flag, and active delivery links for the order buttons.
+ * Three batched queries for all visible IDs. Exported so /saved can reuse it.
  */
-export async function attachPrimaryCertifications(
+export async function attachCardData(
   results: RestaurantNearResult[]
 ): Promise<RestaurantNearResult[]> {
   if (results.length === 0) return results;
   const supabase = createClient();
   const ids = results.map((r) => r.id);
 
-  const { data } = await supabase
-    .from('restaurant_certifications')
-    .select(
-      'restaurant_id, certification:certifications(agency_short_name, agency_name, stringency_level)'
-    )
-    .in('restaurant_id', ids);
+  const [certsRes, featRes, linksRes] = await Promise.all([
+    supabase
+      .from('restaurant_certifications')
+      .select(
+        'restaurant_id, certification:certifications(agency_short_name, agency_name, stringency_level)'
+      )
+      .in('restaurant_id', ids),
+    supabase.from('restaurants').select('id, featured').in('id', ids),
+    supabase
+      .from('delivery_links')
+      .select('id, restaurant_id, platform')
+      .eq('active', true)
+      .in('restaurant_id', ids)
+  ]);
 
-  const best = new Map<string, { short: string | null; name: string; level: number }>();
-  for (const row of (data ?? []) as any[]) {
+  const bestCert = new Map<string, { short: string | null; name: string; level: number }>();
+  for (const row of (certsRes.data ?? []) as any[]) {
     const c = Array.isArray(row.certification) ? row.certification[0] : row.certification;
     if (!c) continue;
     const level = c.stringency_level ?? 0;
-    const existing = best.get(row.restaurant_id);
+    const existing = bestCert.get(row.restaurant_id);
     if (!existing || level > existing.level) {
-      best.set(row.restaurant_id, {
+      bestCert.set(row.restaurant_id, {
         short: c.agency_short_name ?? null,
         name: c.agency_name,
         level
@@ -52,9 +73,29 @@ export async function attachPrimaryCertifications(
     }
   }
 
+  const featuredMap = new Map<string, boolean>();
+  for (const row of (featRes.data ?? []) as any[]) featuredMap.set(row.id, !!row.featured);
+
+  const linksMap = new Map<string, { id: string; platform: DeliveryPlatform }[]>();
+  for (const row of (linksRes.data ?? []) as any[]) {
+    const arr = linksMap.get(row.restaurant_id) ?? [];
+    arr.push({ id: row.id, platform: row.platform });
+    linksMap.set(row.restaurant_id, arr);
+  }
+  for (const arr of linksMap.values()) {
+    arr.sort(
+      (a, b) => PLATFORM_ORDER.indexOf(a.platform) - PLATFORM_ORDER.indexOf(b.platform)
+    );
+  }
+
   return results.map((r) => {
-    const c = best.get(r.id);
-    return { ...r, primary_cert: c ? { short: c.short, name: c.name } : null };
+    const c = bestCert.get(r.id);
+    return {
+      ...r,
+      primary_cert: c ? { short: c.short, name: c.name } : null,
+      featured: featuredMap.get(r.id) ?? false,
+      order_links: linksMap.get(r.id) ?? []
+    };
   });
 }
 
@@ -105,7 +146,7 @@ export async function findRestaurantsNear(
     results = results.filter((r) => matchingIds.has(r.id));
   }
 
-  return attachPrimaryCertifications(results);
+  return attachCardData(results);
 }
 
 /**
@@ -163,7 +204,7 @@ export async function searchRestaurantsByName(
     results = results.filter((r) => matchingIds.has(r.id));
   }
 
-  return attachPrimaryCertifications(results);
+  return attachCardData(results);
 }
 
 /**
