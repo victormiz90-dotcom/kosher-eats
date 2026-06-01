@@ -5,6 +5,8 @@ import {
   getCertOptions,
   searchRestaurantsByName
 } from '@/lib/restaurants';
+import { createClient } from '@/lib/supabase/server';
+import { getFavoritedIds } from '@/lib/favorites';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { ZipSearchForm } from '@/components/ZipSearchForm';
 import { FilterBar } from '@/components/FilterBar';
@@ -29,7 +31,27 @@ const VALID_RADII = new Set([5, 10, 20, 50]);
 const VALID_CATEGORIES = new Set(['meat', 'dairy', 'pareve', 'mixed']);
 
 export default async function HomePage({ searchParams }: PageProps) {
-  const defaultZip = process.env.NEXT_PUBLIC_DEFAULT_ZIP ?? '11230';
+  // Signed-in users default to their saved home zip; everyone else to the env default.
+  const supabase = createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  const isAuthed = !!user;
+
+  let homeZip: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('home_zip')
+      .eq('id', user.id)
+      .single();
+    homeZip = profile?.home_zip ?? null;
+  }
+
+  const defaultZip = homeZip ?? process.env.NEXT_PUBLIC_DEFAULT_ZIP ?? '11230';
+  const hasExplicitLocation = Boolean(
+    searchParams.zip || (searchParams.lat && searchParams.lng)
+  );
 
   let coords: { lat: number; lng: number } | null = null;
   let zip = searchParams.zip ?? defaultZip;
@@ -89,6 +111,8 @@ export default async function HomePage({ searchParams }: PageProps) {
   const startIdx = (currentPage - 1) * PAGE_SIZE;
   const restaurants = allRestaurants.slice(startIdx, startIdx + PAGE_SIZE);
 
+  const favoritedIds = await getFavoritedIds();
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <header className="mb-6">
@@ -98,7 +122,7 @@ export default async function HomePage({ searchParams }: PageProps) {
         </p>
       </header>
 
-      <ZipSearchForm defaultZip={zip} />
+      <ZipSearchForm defaultZip={zip} hasExplicitLocation={hasExplicitLocation} />
 
       {usingGeolocation && (
         <p className="mt-2 text-xs text-brand-700">
@@ -134,7 +158,11 @@ export default async function HomePage({ searchParams }: PageProps) {
         <ul className="space-y-3">
           {restaurants.map((r) => (
             <li key={r.id}>
-              <RestaurantCard restaurant={r} />
+              <RestaurantCard
+                restaurant={r}
+                isAuthed={isAuthed}
+                initialFavorited={favoritedIds.has(r.id)}
+              />
             </li>
           ))}
         </ul>

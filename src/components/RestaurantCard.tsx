@@ -1,36 +1,60 @@
 import Link from 'next/link';
 import type { RestaurantNearResult } from '@/types/database';
+import { FavoriteButton } from '@/components/FavoriteButton';
 
-export function RestaurantCard({ restaurant }: { restaurant: RestaurantNearResult }) {
+export function RestaurantCard({
+  restaurant,
+  initialFavorited = false,
+  isAuthed = false,
+  showDistance = true
+}: {
+  restaurant: RestaurantNearResult;
+  initialFavorited?: boolean;
+  isAuthed?: boolean;
+  showDistance?: boolean;
+}) {
   return (
-    <Link
-      href={`/r/${restaurant.slug}`}
-      className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-sm transition hover:shadow-md"
-    >
-      <LogoAvatar
-        name={restaurant.name}
-        category={restaurant.category}
-        src={restaurant.hero_image_url}
-      />
+    <div className="relative">
+      <Link
+        href={`/r/${restaurant.slug}`}
+        className="flex items-center gap-4 rounded-lg bg-white p-4 pr-14 shadow-sm transition hover:shadow-md"
+      >
+        <LogoAvatar
+          name={restaurant.name}
+          category={restaurant.category}
+          src={restaurant.hero_image_url}
+        />
 
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate font-semibold text-brand-900">{restaurant.name}</h3>
-        <p className="truncate text-xs text-brand-700">
-          {restaurant.address} · {restaurant.city}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-          <CategoryBadge category={restaurant.category} />
-          {restaurant.cholov_yisroel && <Pill>Cholov Yisroel</Pill>}
-          {restaurant.pas_yisroel && <Pill>Pas Yisroel</Pill>}
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-semibold text-brand-900">{restaurant.name}</h3>
+          <p className="truncate text-xs text-brand-700">
+            {restaurant.address} · {restaurant.city}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+            <CategoryBadge category={restaurant.category} />
+            {restaurant.cholov_yisroel && <Pill>Cholov Yisroel</Pill>}
+            {restaurant.pas_yisroel && <Pill>Pas Yisroel</Pill>}
+          </div>
         </div>
-      </div>
 
-      <div className="flex-shrink-0 text-right">
-        <span className="text-xs font-medium text-brand-700">
-          {restaurant.distance_miles.toFixed(1)} mi
-        </span>
+        {showDistance && (
+          <div className="flex-shrink-0 text-right">
+            <span className="text-xs font-medium text-brand-700">
+              {restaurant.distance_miles.toFixed(1)} mi
+            </span>
+          </div>
+        )}
+      </Link>
+
+      {/* Heart sits on top of the link so tapping it saves instead of navigating. */}
+      <div className="absolute right-3 top-3">
+        <FavoriteButton
+          restaurantId={restaurant.id}
+          initialFavorited={initialFavorited}
+          isAuthed={isAuthed}
+        />
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -80,21 +104,14 @@ function LogoAvatar({
   const bg = AVATAR_BG[category] ?? AVATAR_BG.mixed;
 
   return (
-    <div
-      className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md ${bg}`}
-    >
+    <div className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md ${bg}`}>
       {/* Always-rendered letter fallback. If the img loads on top it covers this; if it fails, the letter remains. */}
       <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">
         {initial}
       </div>
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          className="relative h-full w-full object-cover"
-        />
+        <img src={src} alt="" loading="lazy" className="relative h-full w-full object-cover" />
       )}
     </div>
   );
