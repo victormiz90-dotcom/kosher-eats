@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { attachPrimaryCertifications } from '@/lib/restaurants';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import type { RestaurantNearResult } from '@/types/database';
 
@@ -31,17 +32,21 @@ export default async function SavedPage() {
     })
     .filter((r: RestaurantNearResult | null): r is RestaurantNearResult => r !== null);
 
+  const cards = await attachPrimaryCertifications(saved);
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-brand-900">Saved restaurants</h1>
-        <p className="mt-1 text-sm text-brand-700">
-          {saved.length} saved · always confirm current kashrus before ordering.
+        <h1 className="font-serif text-2xl font-semibold tracking-tight text-brand-900">
+          Saved restaurants
+        </h1>
+        <p className="mt-1 text-sm text-brand-500">
+          {cards.length} saved · always confirm current kashrus before ordering.
         </p>
       </header>
 
-      {saved.length === 0 ? (
-        <p className="rounded-lg bg-white p-6 text-center text-sm text-brand-700 shadow-sm">
+      {cards.length === 0 ? (
+        <p className="rounded-lg bg-white p-6 text-center text-sm text-brand-500 shadow-sm">
           You haven&apos;t saved any restaurants yet. Tap the heart on any listing to save it.{' '}
           <Link href="/" className="font-medium text-brand-900 underline-offset-2 hover:underline">
             Browse restaurants
@@ -49,7 +54,7 @@ export default async function SavedPage() {
         </p>
       ) : (
         <ul className="space-y-3">
-          {saved.map((r) => (
+          {cards.map((r) => (
             <li key={r.id}>
               <RestaurantCard restaurant={r} isAuthed initialFavorited showDistance={false} />
             </li>

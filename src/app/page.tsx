@@ -115,27 +115,38 @@ export default async function HomePage({ searchParams }: PageProps) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-brand-900">KosherEats</h1>
-        <p className="mt-1 text-sm text-brand-700">
-          Verified kosher restaurants. One tap to order on Uber Eats, DoorDash, or Grubhub.
+      <section className="mb-6">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-500">
+          Hand-verified kosher dining
         </p>
-      </header>
-
-      <ZipSearchForm defaultZip={zip} hasExplicitLocation={hasExplicitLocation} />
-
-      {usingGeolocation && (
-        <p className="mt-2 text-xs text-brand-700">
-          📍 Showing results {locationLabel}.
+        <h1 className="mt-2 font-serif text-3xl font-semibold leading-[1.05] tracking-tight text-brand-900 sm:text-4xl">
+          Every restaurant, <em className="italic text-accent-500">checked</em> before it reaches you.
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-brand-500">
+          A curated directory of certified kosher restaurants near you — filter by hechsher, cholov
+          yisroel, and pas yisroel, then tap through to order.
         </p>
-      )}
 
-      <FilterBar certOptions={certOptions} />
+        <div className="mt-5 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm">
+          <ZipSearchForm defaultZip={zip} hasExplicitLocation={hasExplicitLocation} />
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <FilterChip label="Cholov Yisroel" param="cy" active={searchParams.cy === '1'} searchParams={searchParams} />
-        <FilterChip label="Pas Yisroel" param="py" active={searchParams.py === '1'} searchParams={searchParams} />
-      </div>
+          {usingGeolocation && (
+            <p className="mt-2 px-1 text-xs text-brand-500">📍 Showing results {locationLabel}.</p>
+          )}
+
+          <FilterBar certOptions={certOptions} />
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <FilterChip label="Cholov Yisroel" param="cy" active={searchParams.cy === '1'} searchParams={searchParams} />
+            <FilterChip label="Pas Yisroel" param="py" active={searchParams.py === '1'} searchParams={searchParams} />
+          </div>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-brand-500">
+          <span className="font-semibold text-verify">✓ Every listing hand-verified.</span> Hechshers
+          change — always confirm before ordering.
+        </p>
+      </section>
 
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-brand-700">

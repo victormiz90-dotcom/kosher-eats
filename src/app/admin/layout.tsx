@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="mb-5 flex items-center gap-3 border-b border-brand-100 pb-3 text-sm">
-        <span className="font-semibold text-brand-900">Admin</span>
+        <span className="font-serif text-base font-semibold text-brand-900">Admin</span>
         <Link href="/admin" className="text-brand-700 hover:text-brand-900">
           Dashboard
         </Link>

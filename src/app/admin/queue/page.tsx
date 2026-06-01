@@ -25,7 +25,7 @@ export default async function QueuePage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-brand-900">Verification queue</h1>
+        <h1 className="font-serif text-xl font-semibold text-brand-900">Verification queue</h1>
         <p className="text-sm text-brand-700">
           {rows.length} pending. Confirm the hechsher against the agency&apos;s published list, then
           verify to make it live.

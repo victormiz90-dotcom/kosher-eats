@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { LocateFixed, Search } from 'lucide-react';
 
 export function ZipSearchForm({
   defaultZip,
@@ -22,10 +23,9 @@ export function ZipSearchForm({
     setZip(defaultZip);
   }, [defaultZip]);
 
-  // Auto-locate returning visitors. We only do this when the URL has no explicit
-  // location AND the browser has *already* granted geolocation permission, so we
-  // never throw a surprise permission prompt at a first-time visitor — they get
-  // the default zip until they tap the button.
+  // Auto-locate returning visitors: only when there's no explicit location AND
+  // the browser has already granted permission, so first-timers never get a
+  // surprise prompt — they see the default zip until they tap the button.
   useEffect(() => {
     if (hasExplicitLocation || !navigator.geolocation) return;
     if (!navigator.permissions?.query) return;
@@ -94,27 +94,29 @@ export function ZipSearchForm({
           maxLength={5}
           value={zip}
           onChange={(e) => setZip(e.target.value)}
-          placeholder="Enter zip"
-          className="flex-1 rounded-lg border border-brand-100 bg-white px-3 py-2 text-base text-brand-900 placeholder:text-brand-500 focus:border-brand-500 focus:outline-none"
+          placeholder="Enter your zip"
+          className="min-w-0 flex-1 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-2.5 text-base text-brand-900 placeholder:text-brand-500 focus:border-accent-500 focus:bg-white focus:outline-none"
         />
         <button
           type="submit"
-          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-900"
         >
-          Search
+          <Search className="h-4 w-4" />
+          <span className="hidden sm:inline">Search</span>
         </button>
         <button
           type="button"
           onClick={useMyLocation}
           disabled={locating}
-          className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-brand-700 hover:border-brand-500 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-100 bg-white px-3 py-2.5 text-sm font-medium text-brand-700 transition hover:border-accent-500 hover:text-accent-600 disabled:opacity-60"
           aria-label="Use my location"
           title="Use my location"
         >
-          {locating ? '…' : '📍'}
+          <LocateFixed className={`h-4 w-4 ${locating ? 'animate-pulse' : ''}`} />
+          <span className="hidden sm:inline">{locating ? 'Locating…' : 'Near me'}</span>
         </button>
       </form>
-      {geoError && <p className="mt-1 text-xs text-red-700">{geoError}</p>}
+      {geoError && <p className="mt-1.5 px-1 text-xs text-red-700">{geoError}</p>}
     </div>
   );
 }

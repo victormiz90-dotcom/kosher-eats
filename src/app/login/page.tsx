@@ -11,7 +11,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-10">
       <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight text-brand-900">Sign in to KosherEats</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight text-brand-900">Sign in to KosherEats</h1>
         <p className="mt-1 text-sm text-brand-700">
           Save your favorite spots and sync them across devices.
         </p>

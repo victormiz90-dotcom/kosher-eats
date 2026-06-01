@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Check } from 'lucide-react';
 import type { RestaurantNearResult } from '@/types/database';
 import { FavoriteButton } from '@/components/FavoriteButton';
 
@@ -13,12 +14,12 @@ export function RestaurantCard({
   isAuthed?: boolean;
   showDistance?: boolean;
 }) {
+  const cert = restaurant.primary_cert;
+  const certLabel = cert ? cert.short ?? cert.name : null;
+
   return (
-    <div className="relative">
-      <Link
-        href={`/r/${restaurant.slug}`}
-        className="flex items-center gap-4 rounded-lg bg-white p-4 pr-14 shadow-sm transition hover:shadow-md"
-      >
+    <div className="group relative overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <Link href={`/r/${restaurant.slug}`} className="flex gap-4 p-4 pr-14">
         <LogoAvatar
           name={restaurant.name}
           category={restaurant.category}
@@ -26,24 +27,37 @@ export function RestaurantCard({
         />
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-semibold text-brand-900">{restaurant.name}</h3>
-          <p className="truncate text-xs text-brand-700">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="truncate font-serif text-lg font-semibold leading-tight text-brand-900">
+              {restaurant.name}
+            </h3>
+            {showDistance && (
+              <span className="flex-shrink-0 text-xs font-medium text-brand-500">
+                {restaurant.distance_miles.toFixed(1)} mi
+              </span>
+            )}
+          </div>
+
+          <p className="mt-0.5 truncate text-xs text-brand-500">
             {restaurant.address} · {restaurant.city}
           </p>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+
+          {/* Hechsher — the loudest element. Green = we verified who certifies it. */}
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-verify-soft px-2 py-1">
+            <span className="grid h-4 w-4 place-items-center rounded bg-verify text-white">
+              <Check className="h-3 w-3" strokeWidth={3.5} />
+            </span>
+            <span className="text-xs font-semibold text-verify">
+              {certLabel ?? 'Verified'}
+            </span>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <CategoryBadge category={restaurant.category} />
             {restaurant.cholov_yisroel && <Pill>Cholov Yisroel</Pill>}
             {restaurant.pas_yisroel && <Pill>Pas Yisroel</Pill>}
           </div>
         </div>
-
-        {showDistance && (
-          <div className="flex-shrink-0 text-right">
-            <span className="text-xs font-medium text-brand-700">
-              {restaurant.distance_miles.toFixed(1)} mi
-            </span>
-          </div>
-        )}
       </Link>
 
       {/* Heart sits on top of the link so tapping it saves instead of navigating. */}
@@ -60,14 +74,14 @@ export function RestaurantCard({
 
 function CategoryBadge({ category }: { category: string }) {
   const styles: Record<string, string> = {
-    meat: 'bg-red-100 text-red-800',
-    dairy: 'bg-blue-100 text-blue-800',
-    pareve: 'bg-green-100 text-green-800',
-    mixed: 'bg-gray-100 text-gray-800'
+    meat: 'bg-[#f6e7e5] text-[#9b3b32]',
+    dairy: 'bg-[#e4eef6] text-[#2c5d86]',
+    pareve: 'bg-[#eaf0e1] text-[#5b7a3a]',
+    mixed: 'bg-brand-50 text-brand-500'
   };
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+      className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
         styles[category] ?? styles.mixed
       }`}
     >
@@ -78,17 +92,17 @@ function CategoryBadge({ category }: { category: string }) {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded bg-accent-400/20 px-1.5 py-0.5 text-[10px] font-medium text-accent-600">
+    <span className="rounded-md border border-brand-100 px-2 py-0.5 text-[10px] font-medium text-brand-500">
       {children}
     </span>
   );
 }
 
 const AVATAR_BG: Record<string, string> = {
-  meat: 'bg-red-600',
-  dairy: 'bg-blue-600',
-  pareve: 'bg-green-600',
-  mixed: 'bg-gray-600'
+  meat: 'bg-[#9b3b32]',
+  dairy: 'bg-[#2c5d86]',
+  pareve: 'bg-[#5b7a3a]',
+  mixed: 'bg-brand-700'
 };
 
 function LogoAvatar({
@@ -104,9 +118,9 @@ function LogoAvatar({
   const bg = AVATAR_BG[category] ?? AVATAR_BG.mixed;
 
   return (
-    <div className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md ${bg}`}>
+    <div className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl ${bg}`}>
       {/* Always-rendered letter fallback. If the img loads on top it covers this; if it fails, the letter remains. */}
-      <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">
+      <div className="absolute inset-0 flex items-center justify-center font-serif text-3xl font-semibold text-white">
         {initial}
       </div>
       {src && (

@@ -4,23 +4,27 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // KosherEats brand palette — deep navy/gold, evokes trust + tradition
+        // KosherEats — warm editorial palette: cream paper, navy ink, gold, kosher-green.
         brand: {
-          50: '#f5f7fa',
-          100: '#e4e9f2',
-          500: '#3b5998',
-          700: '#1e3a5f',
-          900: '#0f1e35'
+          50: '#f6f1e7', // warm paper (page background)
+          100: '#e4dccb', // warm hairline borders
+          500: '#5b6675', // muted ink (secondary text, placeholders)
+          700: '#16263d', // navy ink (primary buttons, strong text)
+          900: '#0f1d33' // deepest ink (headings, hover)
         },
         accent: {
-          // gold for hechsher badges, premium feel
-          400: '#d4a44c',
-          500: '#b88a2e',
-          600: '#9a7222'
+          400: '#d8a24a',
+          500: '#b9762a', // gold
+          600: '#8f5a1f' // deep gold (text on light)
+        },
+        verify: {
+          DEFAULT: '#2f7d54', // kosher green — verified hechsher
+          soft: '#e2efe6'
         }
       },
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
+        serif: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['"Hanken Grotesk"', 'system-ui', '-apple-system', 'sans-serif']
       }
     }
   },
