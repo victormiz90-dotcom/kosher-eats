@@ -101,7 +101,10 @@ export default async function QueuePage({
                         Verify
                       </button>
                     </form>
-                    <Link href={`/r/${r.slug}`} className="text-xs text-brand-700 hover:underline">
+                    <Link href={`/admin/restaurants/${r.id}/edit`} className="text-xs text-brand-700 hover:underline">
+                      Edit
+                    </Link>
+                    <Link href={`/r/${r.slug}`} className="text-xs text-brand-500 hover:underline">
                       Preview
                     </Link>
                   </div>

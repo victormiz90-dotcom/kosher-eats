@@ -49,7 +49,7 @@ export function RestaurantCard({
       .join('') || '?';
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <Link href={`/r/${restaurant.slug}`} className="relative block h-36 overflow-hidden">
         {restaurant.hero_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element

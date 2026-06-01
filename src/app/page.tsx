@@ -115,7 +115,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
-      <section className="mb-8 max-w-2xl">
+      <section className="mb-8">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-500">
           Hand-verified kosher dining
         </p>
@@ -135,11 +135,6 @@ export default async function HomePage({ searchParams }: PageProps) {
           )}
 
           <FilterBar certOptions={certOptions} />
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <FilterChip label="Cholov Yisroel" param="cy" active={searchParams.cy === '1'} searchParams={searchParams} />
-            <FilterChip label="Pas Yisroel" param="py" active={searchParams.py === '1'} searchParams={searchParams} />
-          </div>
         </div>
 
         <p className="mt-3 text-center text-xs text-brand-500">
@@ -200,43 +195,6 @@ export default async function HomePage({ searchParams }: PageProps) {
         </p>
       </footer>
     </main>
-  );
-}
-
-function FilterChip({
-  label,
-  param,
-  active,
-  searchParams
-}: {
-  label: string;
-  param: string;
-  active: boolean;
-  searchParams: Record<string, string | undefined>;
-}) {
-  const next = new URLSearchParams();
-  Object.entries(searchParams).forEach(([k, v]) => {
-    if (v) next.set(k, v);
-  });
-  // Filter changes reset paging to 1
-  next.delete('page');
-  if (active) {
-    next.delete(param);
-  } else {
-    next.set(param, '1');
-  }
-
-  return (
-    <a
-      href={`/?${next.toString()}`}
-      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-        active
-          ? 'border-accent-500 bg-accent-500 text-white'
-          : 'border-brand-100 bg-white text-brand-700 hover:border-brand-500'
-      }`}
-    >
-      {label}
-    </a>
   );
 }
 

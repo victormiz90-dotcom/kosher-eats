@@ -138,6 +138,117 @@ export async function createRestaurant(formData: FormData) {
   redirect(`/admin/queue?added=${encodeURIComponent(name)}`);
 }
 
+export async function updateRestaurant(formData: FormData) {
+  const supabase = await requireAdmin();
+
+  const get = (k: string) => String(formData.get(k) ?? '').trim();
+  const checked = (k: string) => formData.get(k) === 'on';
+
+  const id = get('id');
+  if (!id) redirect('/admin/restaurants?error=Missing restaurant id');
+
+  const name = get('name');
+  if (!name) redirect(`/admin/restaurants/${id}/edit?error=Name is required`);
+
+  const slug = slugify(get('slug') || name);
+  const rawCategory = get('category');
+  const category: KashrusCategory = CATEGORIES.includes(rawCategory as KashrusCategory)
+    ? (rawCategory as KashrusCategory)
+    : 'pareve';
+
+  const lat = parseFloat(get('lat'));
+  const lng = parseFloat(get('lng'));
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    redirect(`/admin/restaurants/${id}/edit?error=Valid latitude and longitude are required`);
+  }
+
+  const priceRaw = parseInt(get('price_level'), 10);
+  const price_level = priceRaw >= 1 && priceRaw <= 4 ? priceRaw : null;
+  const cuisine_tags = get('cuisine_tags')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const { error: updateError } = await supabase
+    .from('restaurants')
+    .update({
+      slug,
+      name,
+      address: get('address'),
+      city: get('city'),
+      state: get('state') || 'NY',
+      zip: get('zip'),
+      lat,
+      lng,
+      phone: get('phone') || null,
+      website: get('website') || null,
+      description: get('description') || null,
+      hero_image_url: get('hero_image_url') || null,
+      category,
+      cholov_yisroel: checked('cholov_yisroel'),
+      pas_yisroel: checked('pas_yisroel'),
+      bishul_yisroel: checked('bishul_yisroel'),
+      shomer_shabbos: checked('shomer_shabbos'),
+      cuisine_tags,
+      price_level
+      // Note: we intentionally do NOT touch verification_status on edit.
+    })
+    .eq('id', id);
+
+  if (updateError) {
+    const msg =
+      updateError.code === '23505'
+        ? `Slug "${slug}" is already taken. Choose another.`
+        : updateError.message;
+    redirect(`/admin/restaurants/${id}/edit?error=${encodeURIComponent(msg)}`);
+  }
+
+  // Hechsher: upsert the chosen agency. We don't delete other certs the
+  // restaurant may already carry.
+  const certId = get('certification_id');
+  if (certId) {
+    await supabase.from('restaurant_certifications').upsert(
+      {
+        restaurant_id: id,
+        certification_id: certId,
+        valid_through: get('valid_through') || null,
+        certificate_url: get('certificate_url') || null
+      },
+      { onConflict: 'restaurant_id,certification_id' }
+    );
+  }
+
+  // Delivery links: a non-empty URL upserts (active); a cleared field
+  // deactivates that platform's link so it drops off the cards.
+  const platforms: { platform: string; key: string }[] = [
+    { platform: 'ubereats', key: 'url_ubereats' },
+    { platform: 'doordash', key: 'url_doordash' },
+    { platform: 'grubhub', key: 'url_grubhub' }
+  ];
+  for (const p of platforms) {
+    const url = get(p.key);
+    if (url) {
+      await supabase
+        .from('delivery_links')
+        .upsert(
+          { restaurant_id: id, platform: p.platform, url, active: true },
+          { onConflict: 'restaurant_id,platform' }
+        );
+    } else {
+      await supabase
+        .from('delivery_links')
+        .update({ active: false })
+        .eq('restaurant_id', id)
+        .eq('platform', p.platform);
+    }
+  }
+
+  revalidatePath('/admin/restaurants');
+  revalidatePath('/');
+  revalidatePath(`/r/${slug}`);
+  redirect(`/admin/restaurants?updated=${encodeURIComponent(name)}`);
+}
+
 export async function verifyRestaurant(formData: FormData) {
   const supabase = await requireAdmin();
   const id = String(formData.get('id') ?? '');

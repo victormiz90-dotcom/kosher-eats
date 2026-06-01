@@ -28,6 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Link href="/admin/restaurants/new" className="text-brand-700 hover:text-brand-900">
           Add restaurant
         </Link>
+        <Link href="/admin/restaurants" className="text-brand-700 hover:text-brand-900">
+          All listings
+        </Link>
         <Link href="/admin/queue" className="text-brand-700 hover:text-brand-900">
           Verification queue
         </Link>
